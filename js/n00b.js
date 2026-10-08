@@ -45,7 +45,21 @@
     setTimeout(step, 200);
   }
   if (!reduce) $$('.h2').forEach(h => { h.querySelector('span').textContent = ''; });
-  const lightUp = el => { el.classList.add('vis'); if (el.classList.contains('win')) setTimeout(() => el.classList.add('lit'), 380 + (parseFloat(getComputedStyle(el).getPropertyValue('--k')) || 0) * 110); };
+  function zoomOpen(el, delay) {
+    if (reduce || !el.animate) return;
+    const r = el.getBoundingClientRect(); if (r.width < 40 || r.bottom < 0 || r.top > innerHeight) return;
+    for (let i = 0; i < 3; i++) {
+      const z = document.createElement('div'); z.className = 'zoomline';
+      Object.assign(z.style, { left: r.left + scrollX + 'px', top: r.top + scrollY + 'px', width: r.width + 'px', height: r.height + 'px' });
+      document.body.appendChild(z);
+      z.animate([{ transform: 'scale(.12)', opacity: 0 }, { opacity: 1, offset: .2 }, { transform: 'scale(1)', opacity: 0 }], { duration: 520, delay: delay + i * 70, easing: 'cubic-bezier(.2,.75,.2,1)', fill: 'both' }).onfinish = () => z.remove();
+    }
+  }
+  const lightUp = el => {
+    const k = parseFloat(getComputedStyle(el).getPropertyValue('--k')) || 0;
+    el.classList.add('vis');
+    if (el.classList.contains('win')) { zoomOpen(el, k * 110); setTimeout(() => el.classList.add('lit'), 380 + k * 110); }
+  };
   const io = new IntersectionObserver(es => es.forEach(e => {
     if (!e.isIntersecting) return; const el = e.target;
     if (el.classList.contains('h2')) typeH2(el); else lightUp(el);
@@ -55,9 +69,17 @@
   const sweep = () => { $$('.rv:not(.vis)').forEach(el => { if (el.getBoundingClientRect().top < innerHeight) lightUp(el); }); $$('.h2:not([data-done])').forEach(h => { if (h.getBoundingClientRect().top < innerHeight) typeH2(h); }); };
   addEventListener('scroll', () => { clearTimeout(sweep.t); sweep.t = setTimeout(sweep, 120); }, { passive: true });
 
-  /* ---------------- clock ---------------- */
-  const tick = () => { const d = new Date(); let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; $('#clock').textContent = h + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + ap; };
-  tick(); setInterval(tick, 10000);
+  /* ---------------- boot splash, once per visit ---------------- */
+  (function boot() {
+    const root = document.documentElement; if (!root.classList.contains('booting')) return;
+    const fill = $('#bootfill'), t0 = performance.now(), span = 1150;
+    const done = () => { if (!root.classList.contains('booting')) return; try { sessionStorage.setItem('n00b:boot', '1'); } catch (e) { } $('#boot').classList.add('out'); setTimeout(() => { root.classList.remove('booting'); $('#boot').remove(); sweep(); spy(); }, 430); };
+    const step = t => { const k = Math.min(1, (t - t0) / span); fill.style.width = (Math.floor(k * 17) / 17 * 100) + '%'; if (k < 1) requestAnimationFrame(step); else setTimeout(done, 120); };
+    requestAnimationFrame(step); setTimeout(done, span + 1200);
+  })();
+  const nav = $('#mbar');
+  const navState = () => nav.classList.toggle('scrolled', scrollY > 8);
+  addEventListener('scroll', navState, { passive: true }); navState();
 
   /* ---------------- menu bar: scroll spy with a sliding highlight ---------------- */
   const navLinks = $$('#mlinks a'), ind = $('#ind'), secs = navLinks.map(a => $('#' + a.dataset.s));
@@ -164,8 +186,8 @@
       : mobile ? `<div class="wl"><a class="btn" href="https://phantom.app/ul/browse/${here}?ref=${ref}">Open in Phantom</a><a class="btn" href="https://solflare.com/ul/v1/browse/${here}?ref=${ref}">Open in Solflare</a></div>`
         : `<p>No Solana wallet found in this browser.</p><div class="wl"><a class="btn" href="https://phantom.com/download" target="_blank" rel="noopener">Get Phantom</a><a class="btn" href="https://solflare.com/download" target="_blank" rel="noopener">Get Solflare</a></div>`;
     dialog({
-      title: 'Sign in', modal: true, buttons: [{ t: 'Cancel' }],
-      html: `<b>Sign in with your wallet</b><br><small>One free signature. It is not a transaction and cannot move anything.</small><div style="margin-top:10px">${body}</div><p class="err" data-err></p>`,
+      title: 'Connect wallet', modal: true, buttons: [{ t: 'Cancel' }],
+      html: `<b>Connect your wallet</b><br><small>You'll sign one free message to prove the wallet is yours. It is not a transaction and cannot move anything.</small><div style="margin-top:10px">${body}</div><p class="err" data-err></p>`,
       onBuild: (d, close) => d.addEventListener('click', async e => {
         const b = e.target.closest('[data-w]'); if (!b) return;
         const err = d.querySelector('[data-err]'); err.textContent = '';
@@ -215,15 +237,15 @@
   }
   function renderMe() {
     $('#meBtn').classList.toggle('on', !!S.me);
-    $('#meLabel').textContent = S.me ? (S.name || short(S.me)) : 'sign in';
-    $('#sb1').textContent = S.me ? 'Signed in as ' + (S.name || short(S.me)) : 'Not signed in';
+    $('#meLabel').textContent = S.me ? (S.name || short(S.me)) : 'Connect wallet';
+    $('#sb1').textContent = S.me ? 'Connected as ' + (S.name || short(S.me)) : 'No wallet connected';
     $('#wMine').hidden = !S.me;
     renderMeWin();
   }
   async function renderMeWin() {
     const box = $('#meBody');
-    if (!S.me) { box.innerHTML = `<div class="who"><img src="/img/head.png" alt=""><div><b>Not signed in</b><small>One free signature. Not a transaction.</small></div></div><div class="links"><button class="btn def" type="button" data-do2="signin">Sign in</button></div>`; return; }
-    box.innerHTML = `<div class="who"><img src="/img/head.png" alt=""><div style="min-width:0"><b>${esc(S.name || short(S.me))}</b><small>${esc(short(S.me))}</small></div></div><div class="links"><button class="btn" type="button" data-do2="name">${S.name ? 'Change name' : 'Pick a name'}</button><button class="btn" type="button" data-do2="asl">My a/s/l</button><button class="btn" type="button" data-do2="out">Sign out</button></div><div class="list field myrooms" id="myRooms" data-lenis-prevent><div class="empty">Reading your rooms…</div></div>`;
+    if (!S.me) { box.innerHTML = `<div class="who"><img src="/img/head.png" alt=""><div><b>Not connected</b><small>One free signature. Not a transaction.</small></div></div><div class="links"><button class="btn def" type="button" data-do2="signin">Connect wallet</button></div>`; return; }
+    box.innerHTML = `<div class="who"><img src="/img/head.png" alt=""><div style="min-width:0"><b>${esc(S.name || short(S.me))}</b><small>${esc(short(S.me))}</small></div></div><div class="links"><button class="btn" type="button" data-do2="name">${S.name ? 'Change name' : 'Pick a name'}</button><button class="btn" type="button" data-do2="asl">My a/s/l</button><button class="btn" type="button" data-do2="out">Disconnect</button></div><div class="list field myrooms" id="myRooms" data-lenis-prevent><div class="empty">Reading your rooms…</div></div>`;
     try {
       const j = await api('me'); const b2 = $('#myRooms'); if (!b2) return;
       b2.innerHTML = j.rooms.length ? j.rooms.map(r => `<button type="button" class="room" data-room="${esc(r.mint)}">${av(r.image, r.symbol || r.name)}<b>${esc(r.symbol ? '$' + r.symbol : r.name)}</b><small class="${r.status === 'in' ? '' : 'z'}" style="${r.status === 'kicked' ? 'color:var(--red)' : ''}">${esc(r.status === 'in' ? 'inside' : r.status)}</small></button>`).join('') : `<div class="empty">You haven't entered a room yet.</div>`;
@@ -237,7 +259,7 @@
   $('#meBtn').addEventListener('click', () => {
     if (!S.me) return signInDialog();
     dialog({ title: S.name || short(S.me), icon: '/img/head.png', modal: true, html: `<b>${esc(S.name || 'No screen name yet')}</b><br><small>${esc(S.me)}</small>`,
-      buttons: [{ t: 'Change name', fn: () => { setTimeout(nameDialog, 200); } }, { t: 'My a/s/l', fn: () => { $('#wW').value = S.me; goTo($('#whois')); } }, { t: 'Sign out', fn: () => signOut() }, { t: 'Close', def: true }] });
+      buttons: [{ t: 'Change name', fn: () => { setTimeout(nameDialog, 200); } }, { t: 'My a/s/l', fn: () => { $('#wW').value = S.me; goTo($('#whois')); } }, { t: 'Disconnect', fn: () => signOut() }, { t: 'Close', def: true }] });
   });
 
   /* ---------------- lobby, rooms, chat ---------------- */
@@ -249,7 +271,7 @@
 
   async function loadLobby() {
     try { S.lobby = await api('lobby'); S.lobby.err = false; } catch (e) { if (!S.lobby) S.lobby = { rooms: [], kicks: [], noobs: [], said: [], totals: null }; S.lobby.err = true; }
-    renderRooms(); renderLive(); renderStatus(); bgFeed(S.lobby.said || []);
+    renderRooms(); renderLive(); renderStatus(); renderTape(); renderBoards(); bgFeed(S.lobby.said || []);
   }
   function renderRooms() {
     const L = S.lobby || { rooms: [] }, box = $('#roomList');
@@ -341,7 +363,7 @@
     const row = $('#sayRow'), r = S.room, sym = r && r.symbol ? '$' + esc(r.symbol) : 'tokens';
     if (!S.mint) { row.innerHTML = `<span class="note2">Pick a room or paste any coin above.</span>`; return; }
     if (!r) { row.innerHTML = `<span class="note2">Opening…</span>`; return; }
-    if (!S.me) { row.innerHTML = `<span class="note2"><b>Sign in to talk.</b> One free signature, not a transaction.</span><button class="btn def" type="button" data-do="signin">Sign in</button>`; return; }
+    if (!S.me) { row.innerHTML = `<span class="note2"><b>Connect a wallet to talk.</b> One free signature, not a transaction.</span><button class="btn def" type="button" data-do="signin">Connect wallet</button>`; return; }
     const m = S.mine;
     if (!m || m.status === 'left') { row.innerHTML = `<span class="note2">Hold <b>${num(r.min)} ${sym}</b> (${r.minPct}%) to enter.</span><button class="btn def" type="button" data-do="join">Enter room</button>`; return; }
     if (m.status === 'kicked') { row.innerHTML = `<span class="note2"><b>You were kicked.</b> Hold ${num(r.min)} ${sym} again to come back.</span><button class="btn" type="button" data-do="join">Enter again</button>`; return; }
@@ -451,6 +473,59 @@
     $('#kSb').textContent = t ? (t.kicks ? `${num(t.kicks)} kick${t.kicks === 1 ? '' : 's'} so far` : 'No kicks yet') : '';
     $('#nSb').textContent = noobs.length ? `${noobs.length} recent n00b${noobs.length === 1 ? '' : 's'}` : '';
   }
+
+  /* ---------------- tape of real events ---------------- */
+  let tapeSig = '';
+  function renderTape() {
+    const items = (S.lobby && S.lobby.tape) || [], tape = $('#tape');
+    if (!items.length) { tape.hidden = true; return; }
+    const html = items.map(e => e.kind === 'kick'
+      ? `<span class="k"><b>${esc(e.name)}</b> was kicked from ${e.symbol ? '$' + esc(e.symbol) : 'a room'} (${esc(e.body)})</span>`
+      : `<span><b>${esc(e.name)}</b> entered ${e.symbol ? '$' + esc(e.symbol) : 'a room'}${isNoob(e.a) ? ' <em>n00b ' + esc(e.a) + '</em>' : ''}</span>`).join('');
+    if (html === tapeSig) return; tapeSig = html;
+    $('#tin').innerHTML = html + html; tape.hidden = false;
+    $('#tin').style.animationDuration = Math.max(30, items.length * 7) + 's';
+  }
+
+  /* ---------------- hiscores ---------------- */
+  let board = 'paper';
+  function renderBoards() {
+    const B = (S.lobby && S.lobby.boards) || {}, rows = B[board] || [], box = $('#bList');
+    const empty = { paper: ['No paper hands yet.', 'The wallets kicked most often land here.'], diamond: ['Nobody inside yet.', 'The wallets that have stayed in a room the longest land here.'], loud: ['Nobody has talked yet.', 'The most lines in the last 7 days land here.'] }[board];
+    if (!rows.length) { box.innerHTML = `<div class="empty"><b>${empty[0]}</b>${empty[1]}</div>`; return; }
+    box.innerHTML = rows.map((r, i) => {
+      const nm = esc(r.name || short(r.wallet));
+      if (board === 'paper') return `<div class="brow" style="animation-delay:${i * 45}ms"><span class="rk">${i + 1}</span><span><b>${nm}</b><small>${esc(short(r.wallet))}</small></span><em style="color:var(--red)">${r.n} kick${r.n === 1 ? '' : 's'}</em></div>`;
+      if (board === 'diamond') return `<div class="brow" style="animation-delay:${i * 45}ms"><span class="rk">${i + 1}</span><span><b>${nm}</b><small>${r.symbol ? '$' + esc(r.symbol) : 'a room'} · holds ${esc(r.s)}</small></span><em style="color:var(--grn)">in since ${ago(r.joined).replace(' ago', '')}</em></div>`;
+      return `<div class="brow" style="animation-delay:${i * 45}ms"><span class="rk">${i + 1}</span><span><b>${nm}</b><small>${esc(short(r.wallet))}</small></span><em>${r.n} line${r.n === 1 ? '' : 's'}</em></div>`;
+    }).join('');
+  }
+  $('#bTabs').addEventListener('click', e => { const b = e.target.closest('[data-b]'); if (!b) return; board = b.dataset.b; $$('#bTabs button').forEach(x => x.classList.toggle('on', x === b)); renderBoards(); });
+
+  /* ---------------- screensaver after 90s idle ---------------- */
+  (function saver() {
+    if (reduce) return;
+    const c = $('#saver'), g = c.getContext('2d'), logo = new Image(); logo.src = '/img/logo.png';
+    let idle = 0, on = false, x = 40, y = 40, vx = 1.6, vy = 1.2, raf = 0, tint = 0;
+    const wake = () => { idle = 0; if (on) { on = false; c.hidden = true; cancelAnimationFrame(raf); if (lenis) lenis.start(); } };
+    ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev => addEventListener(ev, wake, { passive: true }));
+    setInterval(() => { if (document.hidden || on || $('.dlg') || $('.win.maxi')) return; if (++idle >= 90) start(); }, 1000);
+    function start() {
+      on = true; c.hidden = false; c.width = innerWidth; c.height = innerHeight; if (lenis) lenis.stop();
+      const props = Array.from({ length: 26 }, () => ({ x: Math.random() * c.width, y: Math.random() * c.height, v: .4 + Math.random() * 1.2, s: 2 + (Math.random() * 3 | 0) }));
+      const frame = () => {
+        g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, c.width, c.height);
+        for (const p of props) { p.y -= p.v; if (p.y < -20) { p.y = c.height + 20; p.x = Math.random() * c.width; } g.drawImage(propImg, Math.round(p.x), Math.round(p.y), 13 * p.s, 6 * p.s); }
+        const w = logo.width * 2, h = logo.height * 2;
+        x += vx; y += vy;
+        if (x < 0 || x + w > c.width) { vx *= -1; tint++; x = Math.max(0, Math.min(x, c.width - w)); }
+        if (y < 0 || y + h > c.height) { vy *= -1; tint++; y = Math.max(0, Math.min(y, c.height - h)); }
+        g.imageSmoothingEnabled = false; g.filter = `hue-rotate(${(tint * 67) % 360}deg)`; if (logo.complete) g.drawImage(logo, Math.round(x), Math.round(y), w, h); g.filter = 'none';
+        raf = requestAnimationFrame(frame);
+      };
+      g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height); frame();
+    }
+  })();
 
   /* ---------------- help viewer ---------------- */
   let topics = [];
