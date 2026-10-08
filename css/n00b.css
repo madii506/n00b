@@ -51,17 +51,6 @@ img{image-rendering:pixelated}
 .cw img{width:18px;height:20px}
 .cw.on span{color:var(--mag);font-weight:700}
 
-/* ---------- boot splash (once per visit) ---------- */
-.boot{position:fixed;inset:0;z-index:200;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:28px}
-html.booting .boot{display:flex}
-html.booting body{overflow:hidden}
-.boot img{width:382px;max-width:80vw;height:auto;animation:bootlogo 1.2s var(--ease) both}
-@keyframes bootlogo{from{opacity:0;transform:scale(.92)}}
-.bootbar{width:min(300px,70vw);height:22px;padding:3px;box-shadow:inset -1px -1px #fff,inset 1px 1px #808080;background:#000}
-.bootbar i{display:block;height:100%;width:0;background:repeating-linear-gradient(90deg,#1084d0 0 14px,transparent 14px 17px)}
-.boot.out{animation:bootout .45s var(--ease) forwards}
-@keyframes bootout{to{opacity:0;visibility:hidden}}
-
 /* ---------- live tape of real events ---------- */
 .tape{overflow:hidden;white-space:nowrap;margin:0 0 14px;-webkit-mask:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
 .tin{display:inline-flex;gap:0;animation:tape 60s linear infinite;color:#fff;text-shadow:1px 1px 0 #000}
@@ -143,7 +132,8 @@ input.field::placeholder{color:#8a8a8a}
 .wel-p{font:400 14px/21px var(--P)}
 .wel-btns{display:grid;gap:6px}
 .wel-btns .btn{width:100%;height:28px}
-.wel-ca{display:flex;gap:6px;align-items:center;min-height:26px}
+.wel-ca{display:flex;gap:6px;align-items:center}
+.wel-ca:empty{display:none}
 .wel-ca .field{flex:1;font-size:14px}
 .wel-ca .soon{font:400 13px/18px var(--P);color:#333;display:flex;gap:8px;align-items:center}
 .wel-ca .soon img{width:24px;height:24px}
