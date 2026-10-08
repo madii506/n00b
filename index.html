@@ -14,29 +14,31 @@
 <link rel="apple-touch-icon" href="/img/fav-180.png">
 <link rel="preload" href="/fonts/n00b-sys.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/n00b-sysb.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/n00b.css?v=2">
+<link rel="stylesheet" href="/css/n00b.css?v=3">
 </head>
 <body>
+<script>try{if(!sessionStorage.getItem("n00b:boot")&&!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.classList.add("booting")}catch(e){}</script>
 <canvas id="bg" aria-hidden="true"></canvas>
 
-<header class="mbar" id="mbar">
+<div class="boot" id="boot" aria-hidden="true"><img src="/img/logo.png" alt="" width="382" height="126"><div class="bootbar"><i id="bootfill"></i></div></div>
+<header class="topnav" id="mbar">
   <span></span>
   <nav class="mlinks" id="mlinks">
     <a href="#rooms" data-s="rooms"><u>R</u>ooms</a><a href="#how" data-s="how"><u>H</u>ow</a><a href="#whois" data-s="whois"><u>W</u>hois</a><a href="#live" data-s="live"><u>L</u>ive</a><a href="#help" data-s="help">H<u>e</u>lp</a>
     <i class="ind" id="ind"></i>
   </nav>
-  <div class="tray"><button class="trayme" id="meBtn" type="button"><img src="/img/head.png" alt="" width="18" height="20"><span id="meLabel">sign in</span></button><span class="clock" id="clock"></span></div>
+  <div class="navr"><button class="btn cw" id="meBtn" type="button"><img src="/img/head.png" alt="" width="18" height="20"><span id="meLabel">Connect wallet</span></button></div>
 </header>
 
 <main>
 <!-- 1. rooms -->
 <section class="sec hero" id="rooms">
+  <div class="tape" id="tape" hidden><div class="tin" id="tin"></div></div>
   <div class="wrap herow">
     <div class="win rv welcome" id="welcome" style="--k:0">
       <div class="tb"><img class="tico" src="/img/head.png" alt=""><span class="tt">Welcome</span></div>
       <div class="wb wel">
         <div class="stage">
-          <span class="bub" id="bub">a/s/l?</span>
           <img class="mascot" src="/img/n00b.png" alt="the n00b" width="220" height="244">
         </div>
         <b class="wel-h">Welcome to n00b</b>
@@ -161,6 +163,13 @@
         <div class="sbar"><span id="nSb"></span></div>
       </div>
     </div>
+    <div class="win rv boards" style="--k:1">
+      <div class="tb"><img class="tico" src="/img/i-kicked.png" alt=""><span class="tt">hiscores.exe</span></div>
+      <div class="wb">
+        <div class="tabs" id="bTabs" role="tablist"><button type="button" role="tab" class="on" data-b="paper">Paper hands</button><button type="button" role="tab" data-b="diamond">Still inside</button><button type="button" role="tab" data-b="loud">Loudest</button></div>
+        <div class="tabp field" id="bList" data-lenis-prevent></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -195,9 +204,10 @@
 </main>
 
 <div class="layer" id="layer"></div>
+<canvas class="saver" id="saver" hidden aria-hidden="true"></canvas>
 <div class="sr" id="live2" aria-live="polite"></div>
 
 <script src="/js/lenis.min.js?v=1"></script>
-<script src="/js/n00b.js?v=2"></script>
+<script src="/js/n00b.js?v=3"></script>
 </body>
 </html>
