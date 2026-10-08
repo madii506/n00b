@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>n00b</title>
+<meta name="description" content="Chatrooms for holders. Your wallet's age, size and rank are read from the chain. New wallets show up as n00b. Sell half and you're kicked.">
+<meta property="og:title" content="n00b">
+<meta property="og:description" content="Chatrooms for holders. Your wallet's age, size and rank are read from the chain.">
+<meta property="og:image" content="/img/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#008080">
+<link rel="icon" href="/img/fav-64.png" type="image/png">
+<link rel="apple-touch-icon" href="/img/fav-180.png">
+<link rel="preload" href="/fonts/n00b-sys.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/n00b-sysb.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/n00b.css?v=1">
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+
+<header class="mbar" id="mbar">
+  <span></span>
+  <nav class="mlinks" id="mlinks">
+    <a href="#chat" data-w="chat"><u>R</u>ooms</a><a href="#whois" data-w="whois"><u>W</u>hois</a><a href="#kicked" data-w="kicked"><u>K</u>icked</a><a href="#rules" data-w="rules">R<u>u</u>les</a><a href="#help" data-w="help"><u>H</u>elp</a>
+  </nav>
+  <div class="tray"><button class="trayme" id="meBtn" type="button"><img src="/img/head.png" alt="" width="18" height="20"><span id="meLabel">sign in</span></button><span class="clock" id="clock"></span></div>
+</header>
+
+<main>
+<section class="desk d1" id="d1">
+  <div class="d1l">
+    <h1 class="logo rv"><img src="/img/logo.png" alt="n00b" width="382" height="126"></h1>
+
+    <div class="win rv" id="welcome" data-win="welcome" style="--k:1">
+      <div class="tb"><span class="tt">Welcome</span><span class="tbbs"><button class="tbb x" type="button" data-act="close" aria-label="Close"></button></span></div>
+      <div class="wb wel">
+        <div class="wel-top">
+          <img class="wel-ico" src="/img/head.png" alt="" width="61" height="69">
+          <div>
+            <b class="wel-h">Welcome to n00b</b>
+            <p class="wel-p">Chatrooms for holders. Your age, size and location are read from the chain. Sell half your bag and you're kicked.</p>
+          </div>
+        </div>
+        <div class="wel-ca" id="welCa" hidden></div>
+        <div class="wel-btns">
+          <button class="btn" type="button" data-go="enter">Enter a room</button>
+          <button class="btn" type="button" data-go="whois">What's my a/s/l?</button>
+          <button class="btn" type="button" data-go="rules">Rules</button>
+        </div>
+        <label class="chk"><input type="checkbox" id="welShow" checked><span></span>Show this Welcome Screen next time</label>
+      </div>
+    </div>
+
+    <div class="mascot rv" style="--k:2"><span class="bub">a/s/l?</span><img src="/img/n00b.png" alt="" width="220" height="244"></div>
+  </div>
+
+  <div class="win rv chat" id="chat" data-win="chat" style="--k:1">
+    <div class="tb"><img class="tico" src="/img/i-rooms.png" alt=""><span class="tt" id="chatT">n00b chat - lobby</span><span class="tbbs"><button class="tbb min" type="button" data-act="min" aria-label="Minimize"></button><button class="tbb max" type="button" data-act="max" aria-label="Maximize"></button><button class="tbb x" type="button" data-act="close" aria-label="Close"></button></span></div>
+    <div class="mnu" id="chatMenu">
+      <div class="mi"><button type="button" class="mt"><u>R</u>oom</button><div class="dd"><button type="button" data-c="open">Open a coin…</button><button type="button" data-c="copy">Copy room link</button><button type="button" data-c="whoisRoom">Whois in this room…</button><hr><button type="button" data-c="leave">Leave room</button></div></div>
+      <div class="mi"><button type="button" class="mt"><u>V</u>iew</button><div class="dd"><button type="button" data-c="sys" class="ck on">Joins and kicks</button><button type="button" data-c="stamps" class="ck on">Timestamps</button><button type="button" data-c="online" class="ck">Online people only</button></div></div>
+      <div class="mi"><button type="button" class="mt"><u>H</u>elp</button><div class="dd"><button type="button" data-c="rules">Rules</button><button type="button" data-c="help">Help topics</button></div></div>
+    </div>
+    <form class="addr" id="goForm" autocomplete="off">
+      <label for="goIn">Coin</label>
+      <input id="goIn" class="field" spellcheck="false" placeholder="paste a coin address">
+      <button class="btn" type="submit">Go</button>
+    </form>
+    <div class="ptabs" id="ptabs"><button type="button" data-p="rooms">Rooms</button><button type="button" data-p="chat" class="on">Chat</button><button type="button" data-p="people">People <b id="pc"></b></button></div>
+    <div class="panes" id="panes" data-pane="chat">
+      <div class="pane rooms">
+        <div class="ph">Rooms</div>
+        <div class="list field" id="roomList" data-lenis-prevent></div>
+      </div>
+      <div class="pane talk">
+        <div class="rhead" id="rhead"></div>
+        <div class="log field" id="log" data-lenis-prevent></div>
+        <div class="sayrow" id="sayRow"></div>
+      </div>
+      <div class="pane people">
+        <div class="ph ppl"><span>Name</span><span>A</span><span>S</span><span>L</span></div>
+        <div class="list field" id="people" data-lenis-prevent></div>
+      </div>
+    </div>
+    <div class="sbar"><span id="sb1">Not signed in</span><span id="sb2"></span><span id="sb3"></span></div>
+  </div>
+</section>
+
+<section class="desk d2" id="d2">
+  <div class="icons" id="icons">
+    <button type="button" class="ico" data-open="chat"><img src="/img/i-rooms.png" alt=""><span>Rooms</span></button>
+    <button type="button" class="ico" data-open="whois"><img src="/img/i-whois.png" alt=""><span>Whois</span></button>
+    <button type="button" class="ico" data-open="kicked"><img src="/img/i-kicked.png" alt=""><span>Kicked</span></button>
+    <button type="button" class="ico" data-open="rules"><img src="/img/i-rules.png" alt=""><span>rules.txt</span></button>
+    <button type="button" class="ico" data-open="help"><img src="/img/i-help.png" alt=""><span>Help</span></button>
+    <button type="button" class="ico" data-open="token"><img src="/img/i-token.png" alt=""><span>$N00B</span></button>
+    <button type="button" class="ico" data-open="me"><img src="/img/head.png" alt=""><span>My n00b</span></button>
+  </div>
+
+  <div class="d2w">
+    <div class="win rv whois" id="whois" data-win="whois">
+      <div class="tb"><img class="tico" src="/img/i-whois.png" alt=""><span class="tt">whois - a/s/l lookup</span><span class="tbbs"><button class="tbb min" type="button" data-act="min" aria-label="Minimize"></button><button class="tbb x" type="button" data-act="close" aria-label="Close"></button></span></div>
+      <div class="wb">
+        <form class="wform" id="wForm" autocomplete="off">
+          <label for="wW">Wallet</label><input class="field" id="wW" spellcheck="false" placeholder="any Solana wallet">
+          <label for="wM">Coin</label><input class="field" id="wM" spellcheck="false" placeholder="any coin address">
+          <div class="wbtns"><button class="btn" type="button" id="wMine" hidden>My wallet</button><button class="btn" type="button" id="wRoom" hidden>This room's coin</button><button class="btn def" type="submit" id="wGo">Look up</button></div>
+        </form>
+        <fieldset class="gb legend" id="wLeg"><legend>Reading a line</legend>
+          <div class="lg"><span class="tg"><i class="a">2.4y</i></span><span>age: time since the wallet's first transaction</span></div>
+          <div class="lg"><span class="tg"><i class="s">1.20%</i></span><span>size: its share of the coin's supply right now</span></div>
+          <div class="lg"><span class="tg"><i class="l">#4</i></span><span>location: its place in the holder list</span></div>
+          <div class="lg"><span class="nb"><img src="/img/prop.png" alt="">n00b</span><span>a wallet younger than 7 days</span></div>
+        </fieldset>
+        <div class="wres" id="wRes" hidden>
+          <div class="wcoin" id="wCoin"></div>
+          <div class="gbs">
+            <fieldset class="gb a"><legend>Age</legend><b id="rA"></b><small id="rA2"></small></fieldset>
+            <fieldset class="gb s"><legend>Size</legend><b id="rS"></b><small id="rS2"></small></fieldset>
+            <fieldset class="gb l"><legend>Location</legend><b id="rL"></b><small id="rL2"></small></fieldset>
+          </div>
+          <div class="wv" id="rV"></div>
+        </div>
+        <p class="wmsg" id="wMsg"></p>
+      </div>
+    </div>
+
+    <div class="win rv kick" id="kicked" data-win="kicked" style="--k:1">
+      <div class="tb"><img class="tico" src="/img/i-kicked.png" alt=""><span class="tt">kicked.log</span><span class="tbbs"><button class="tbb min" type="button" data-act="min" aria-label="Minimize"></button><button class="tbb x" type="button" data-act="close" aria-label="Close"></button></span></div>
+      <div class="wb">
+        <div class="list field klist" id="kList" data-lenis-prevent></div>
+      </div>
+      <div class="sbar"><span id="kSb"></span></div>
+    </div>
+
+    <div class="win rv rules" id="rules" data-win="rules" style="--k:2">
+      <div class="tb"><img class="tico" src="/img/i-rules.png" alt=""><span class="tt">rules.txt</span><span class="tbbs"><button class="tbb min" type="button" data-act="min" aria-label="Minimize"></button><button class="tbb x" type="button" data-act="close" aria-label="Close"></button></span></div>
+      <div class="wb">
+        <ol class="note field">
+          <li>Sign in with one free signature. It is not a transaction.</li>
+          <li>Hold <span class="minp">0.01%</span> of a coin and its room opens for you.</li>
+          <li>Your age, size and location sit next to every line you type.</li>
+          <li>Wallets younger than 7 days show up as n00b.</li>
+          <li>Drop to half your peak bag and you're kicked, in front of everyone.</li>
+          <li>Buy back in and you can enter again. Your kicks stay on your name.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="win rv help" id="help" data-win="help" style="--k:1">
+      <div class="tb"><img class="tico" src="/img/i-help.png" alt=""><span class="tt">n00b Help</span><span class="tbbs"><button class="tbb min" type="button" data-act="min" aria-label="Minimize"></button><button class="tbb x" type="button" data-act="close" aria-label="Close"></button></span></div>
+      <div class="wb hv">
+        <div class="hl">
+          <input class="field" id="hFind" spellcheck="false" placeholder="Find a topic" aria-label="Find a topic">
+          <div class="list field" id="hList" data-lenis-prevent></div>
+        </div>
+        <article class="field hart" id="hArt" data-lenis-prevent></article>
+      </div>
+    </div>
+
+    <div class="side">
+    <div class="win rv tok" id="token" data-win="token" style="--k:2">
+      <div class="tb"><img class="tico" src="/img/i-token.png" alt=""><span class="tt">$N00B</span><span class="tbbs"><button class="tbb x" type="button" data-act="close" aria-label="Close"></button></span></div>
+      <div class="wb" id="tokBody"></div>
+    </div>
+    <div class="win rv mewin" id="me" data-win="me" style="--k:3">
+      <div class="tb"><img class="tico" src="/img/head.png" alt=""><span class="tt">My n00b</span><span class="tbbs"><button class="tbb min" type="button" data-act="min" aria-label="Minimize"></button><button class="tbb x" type="button" data-act="close" aria-label="Close"></button></span></div>
+      <div class="wb" id="meBody"></div>
+    </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<div class="layer" id="layer"></div>
+<div class="sr" id="live" aria-live="polite"></div>
+
+<script src="/js/lenis.min.js?v=1"></script>
+<script src="/js/n00b.js?v=1"></script>
+</body>
+</html>
