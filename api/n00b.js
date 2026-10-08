@@ -456,8 +456,9 @@ R['GET lobby'] = async () => {
     FROM nb_rooms r WHERE r.msgs > 0 ORDER BY online DESC, r.last_at DESC NULLS LAST LIMIT 40`;
   const kicks = await s`SELECT m.id, m.mint, m.wallet, m.name, m.body, m.a, m.s, m.l, m.at, r.symbol FROM nb_msgs m JOIN nb_rooms r USING (mint) WHERE m.kind='kick' ORDER BY m.id DESC LIMIT 24`;
   const said = await s`SELECT m.name, m.body, r.symbol, m.mint FROM nb_msgs m JOIN nb_rooms r USING (mint) WHERE m.kind='say' ORDER BY m.id DESC LIMIT 14`;
+  const noobs = await s`SELECT m.id, m.mint, m.wallet, m.name, m.a, m.s, m.l, m.at, r.symbol FROM nb_msgs m JOIN nb_rooms r USING (mint) WHERE m.kind='join' AND m.a ~ '^[0-6]d$' ORDER BY m.id DESC LIMIT 24`;
   const t = (await s`SELECT (SELECT count(*) FROM nb_rooms WHERE msgs > 0)::int AS rooms, (SELECT count(*) FROM nb_members WHERE status='in')::int AS inside, (SELECT count(*) FROM nb_msgs WHERE kind='kick')::int AS kicks, (SELECT count(*) FROM nb_msgs WHERE kind='say')::int AS said`)[0];
-  return { rooms, kicks: kicks.map(k => ({ ...k, id: Number(k.id) })), said, totals: t };
+  return { rooms, kicks: kicks.map(k => ({ ...k, id: Number(k.id) })), noobs: noobs.map(k => ({ ...k, id: Number(k.id) })), said, totals: t };
 };
 
 // anyone can read any wallet's a/s/l for a coin. Read only, nothing is joined.
