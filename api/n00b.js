@@ -9,7 +9,8 @@ const crypto = require('crypto');
 const E = (k, d = '') => String(process.env[k] == null ? d : process.env[k]).trim();
 const CA = E('N00B_CA'), XH = E('N00B_X');
 const RPC_URL = E('RPC_URL');
-const RPCS = E('N00B_RPCS') ? E('N00B_RPCS').split(',') : [RPC_URL, 'https://solana-rpc.publicnode.com', 'https://api.mainnet-beta.solana.com'].filter(Boolean);
+// public nodes refuse some indexed calls (publicnode) or rate-limit (mainnet-beta); a private RPC_URL goes first when set
+const RPCS = E('N00B_RPCS') ? E('N00B_RPCS').split(',') : [RPC_URL, 'https://api.mainnet-beta.solana.com', 'https://solana-rpc.publicnode.com'].filter(Boolean);
 const DB_URL = E('DATABASE_URL') || E('POSTGRES_URL');
 const MIN_PCT = Number(E('N00B_MIN_PCT', '0.01')) || 0.01;   // % of supply needed to enter a room
 const KICK = Number(E('N00B_KICK', '0.5')) || 0.5;           // kicked when the bag falls to this share of its peak
@@ -112,6 +113,15 @@ async function rpc(method, params, opt = {}) {
   throw http(502, 'Solana RPC is busy, try again in a moment.', { why: String(last && last.message || '').replace(/https?:\/\/\S+/g, '').slice(0, 100) });
 }
 const rotated = k => RPCS.slice(k % RPCS.length).concat(RPCS.slice(0, k % RPCS.length));
+// ask each node in turn until one gives an answer that passes `good` (a node answering empty or null is not trusted on its own)
+async function rpcEach(method, params, good, list = RPCS) {
+  let last, any = false, lastErr;
+  for (const u of list) {
+    try { const r = await rpc(method, params, { only: [u] }); any = true; last = r; if (good(r)) return r; } catch (e) { lastErr = e; }
+  }
+  if (any) return last;
+  throw lastErr || http(502, 'Solana RPC is busy, try again in a moment.');
+}
 
 async function getJson(url, ms = 6000) {
   const r = await timedFetch(ms)(url, { headers: { accept: 'application/json', 'user-agent': 'Mozilla/5.0 n00b' } });
@@ -134,7 +144,7 @@ async function mintRead(mint) {
 async function metaplex(mint) {
   const { PublicKey } = require('@solana/web3.js');
   const [pda] = PublicKey.findProgramAddressSync([Buffer.from('metadata'), new PublicKey(META).toBuffer(), new PublicKey(mint).toBuffer()], new PublicKey(META));
-  const r = await rpc('getAccountInfo', [pda.toBase58(), { encoding: 'base64' }]);
+  const r = await rpcEach('getAccountInfo', [pda.toBase58(), { encoding: 'base64' }], x => x && x.value);
   if (!r || !r.value) return null;
   const b = Buffer.from(r.value.data[0], 'base64'); let o = 65;
   const str = () => { const n = b.readUInt32LE(o); o += 4; const s = b.slice(o, o + n).toString('utf8'); o += n; return clean(s); };
@@ -159,7 +169,7 @@ async function market(mint) {
 
 // every token account this wallet holds for the coin, summed
 async function bag(owner, mint, k = 0) {
-  const r = await rpc('getTokenAccountsByOwner', [owner, { mint }, { encoding: 'jsonParsed', commitment: 'confirmed' }], { only: rotated(k) });
+  const r = await rpcEach('getTokenAccountsByOwner', [owner, { mint }, { encoding: 'jsonParsed', commitment: 'confirmed' }], x => x && x.value && x.value.length, rotated(k));
   return (r && r.value || []).reduce((a, x) => { const t = x.account.data.parsed.info.tokenAmount; return a + Number(t.uiAmountString != null ? t.uiAmountString : t.uiAmount || 0); }, 0);
 }
 
@@ -215,11 +225,12 @@ function place(h, wallet) {
 async function ageOf(wallet) {
   const s = db();
   const u = (await s`SELECT first_ts, age_done, age_cursor, age_seen FROM nb_users WHERE wallet=${wallet}`)[0];
-  if (u && u.age_done) return { ts: u.first_ts == null ? null : Number(u.first_ts), done: true };
-  let before = u ? u.age_cursor : null, seen = u ? Number(u.age_seen || 0) : 0, first = u && u.first_ts != null ? Number(u.first_ts) : null, done = false;
+  if (u && u.age_done && u.first_ts != null) return { ts: Number(u.first_ts), done: true };
+  let before = u && u.first_ts != null ? u.age_cursor : null, seen = u && u.first_ts != null ? Number(u.age_seen || 0) : 0, first = u && u.first_ts != null ? Number(u.first_ts) : null, done = false;
   for (let i = 0; i < 3; i++) {
     const opt = { limit: 1000, commitment: 'confirmed' }; if (before) opt.before = before;
-    const page = await rpc('getSignaturesForAddress', [wallet, opt]);
+    const page = !before ? await rpcEach('getSignaturesForAddress', [wallet, opt], x => Array.isArray(x) && x.length) : await rpc('getSignaturesForAddress', [wallet, opt]);
+    if (!before && (!Array.isArray(page) || !page.length)) return { ts: null, done: false };  // no node showed any history: unknown, never "fresh"
     seen += page.length;
     if (page.length) { const last = page[page.length - 1]; before = last.signature; if (last.blockTime) first = last.blockTime; }
     if (page.length < 1000) { done = true; break; }
@@ -229,7 +240,7 @@ async function ageOf(wallet) {
   return { ts: first, done };
 }
 function ageLabel(a) {
-  if (!a || !a.ts) return a && a.done ? '0d' : '?';
+  if (!a || !a.ts) return '?';
   const d = (nowS() - a.ts) / 86400;
   const t = d < 1 ? '0d' : d < 60 ? Math.floor(d) + 'd' : d < 730 ? Math.floor(d / 30.44) + 'mo' : String(Math.floor(d / 365.25 * 10) / 10).replace(/\.0$/, '') + 'y';
   return a.done ? t : t + '+';
@@ -456,9 +467,13 @@ R['GET lobby'] = async () => {
     FROM nb_rooms r WHERE r.msgs > 0 ORDER BY online DESC, r.last_at DESC NULLS LAST LIMIT 40`;
   const kicks = await s`SELECT m.id, m.mint, m.wallet, m.name, m.body, m.a, m.s, m.l, m.at, r.symbol FROM nb_msgs m JOIN nb_rooms r USING (mint) WHERE m.kind='kick' ORDER BY m.id DESC LIMIT 24`;
   const said = await s`SELECT m.name, m.body, r.symbol, m.mint FROM nb_msgs m JOIN nb_rooms r USING (mint) WHERE m.kind='say' ORDER BY m.id DESC LIMIT 14`;
+  const tape = await s`SELECT m.kind, m.name, m.a, m.body, m.at, r.symbol FROM nb_msgs m JOIN nb_rooms r USING (mint) WHERE m.kind IN ('join','kick') ORDER BY m.id DESC LIMIT 20`;
+  const paper = await s`SELECT wallet, max(name) AS name, count(*)::int AS n FROM nb_msgs WHERE kind='kick' GROUP BY wallet ORDER BY n DESC, max(id) DESC LIMIT 10`;
+  const diamond = await s`SELECT m.wallet, coalesce(u.name, '') AS name, m.joined, m.pct, r.symbol, m.mint FROM nb_members m JOIN nb_rooms r USING (mint) LEFT JOIN nb_users u USING (wallet) WHERE m.status='in' ORDER BY m.joined ASC LIMIT 10`;
+  const loud = await s`SELECT wallet, max(name) AS name, count(*)::int AS n FROM nb_msgs WHERE kind='say' AND at > now() - interval '7 days' GROUP BY wallet ORDER BY n DESC LIMIT 10`;
   const noobs = await s`SELECT m.id, m.mint, m.wallet, m.name, m.a, m.s, m.l, m.at, r.symbol FROM nb_msgs m JOIN nb_rooms r USING (mint) WHERE m.kind='join' AND m.a ~ '^[0-6]d$' ORDER BY m.id DESC LIMIT 24`;
   const t = (await s`SELECT (SELECT count(*) FROM nb_rooms WHERE msgs > 0)::int AS rooms, (SELECT count(*) FROM nb_members WHERE status='in')::int AS inside, (SELECT count(*) FROM nb_msgs WHERE kind='kick')::int AS kicks, (SELECT count(*) FROM nb_msgs WHERE kind='say')::int AS said`)[0];
-  return { rooms, kicks: kicks.map(k => ({ ...k, id: Number(k.id) })), noobs: noobs.map(k => ({ ...k, id: Number(k.id) })), said, totals: t };
+  return { rooms, kicks: kicks.map(k => ({ ...k, id: Number(k.id) })), noobs: noobs.map(k => ({ ...k, id: Number(k.id) })), said, tape, boards: { paper, diamond: diamond.map(d => ({ ...d, s: sizeLabel(Number(d.pct || 0)) })), loud }, totals: t };
 };
 
 // anyone can read any wallet's a/s/l for a coin. Read only, nothing is joined.
