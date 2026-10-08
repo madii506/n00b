@@ -69,14 +69,6 @@
   const sweep = () => { $$('.rv:not(.vis)').forEach(el => { if (el.getBoundingClientRect().top < innerHeight) lightUp(el); }); $$('.h2:not([data-done])').forEach(h => { if (h.getBoundingClientRect().top < innerHeight) typeH2(h); }); };
   addEventListener('scroll', () => { clearTimeout(sweep.t); sweep.t = setTimeout(sweep, 120); }, { passive: true });
 
-  /* ---------------- boot splash, once per visit ---------------- */
-  (function boot() {
-    const root = document.documentElement; if (!root.classList.contains('booting')) return;
-    const fill = $('#bootfill'), t0 = performance.now(), span = 1150;
-    const done = () => { if (!root.classList.contains('booting')) return; try { sessionStorage.setItem('n00b:boot', '1'); } catch (e) { } $('#boot').classList.add('out'); setTimeout(() => { root.classList.remove('booting'); $('#boot').remove(); sweep(); spy(); }, 430); };
-    const step = t => { const k = Math.min(1, (t - t0) / span); fill.style.width = (Math.floor(k * 17) / 17 * 100) + '%'; if (k < 1) requestAnimationFrame(step); else setTimeout(done, 120); };
-    requestAnimationFrame(step); setTimeout(done, span + 1200);
-  })();
   const nav = $('#mbar');
   const navState = () => nav.classList.toggle('scrolled', scrollY > 8);
   addEventListener('scroll', navState, { passive: true }); navState();
@@ -151,7 +143,7 @@
       $('#welCa').innerHTML = `<input class="field" readonly value="${esc(c.ca)}" aria-label="contract address"><button class="btn" type="button" data-copy="${esc(c.ca)}">Copy CA</button>`;
     } else {
       $('#tokBody').innerHTML = `<div class="warn"><img src="/img/i-token.png" alt=""><p>The token does not exist yet. Anyone posting a CA before it shows up here is not us.</p></div>${x ? `<div class="links">${x}</div>` : ''}`;
-      $('#welCa').innerHTML = `<span class="soon"><img src="/img/i-token.png" alt="">$N00B isn't live yet. A CA posted anywhere before it shows up here is not ours.</span>`;
+      $('#welCa').innerHTML = '';
     }
   }
   document.addEventListener('click', async e => {
@@ -544,7 +536,6 @@
       ['Does it cost anything?', `<p>No. There is no fee and nothing to approve. Holding the coin is the ticket.</p>`],
       ['Who can read the chat?', `<p>Rooms are public. Anyone can read them, only holders can talk. Every line is stored with the readings it was sent with. Links are shown as plain text and are never clickable.</p>`],
       ['Is n00b part of pump.fun?', `<p>No. n00b is independent. It reads public chain data and works with any wallet that can sign a message.</p>`],
-      ['What is $N00B?', c.ca ? `<p>The coin of the site. Its address is in the $N00B window. Rooms work for every coin, with or without it.</p>` : `<p>The coin of the site. It does not exist yet. Its address will show up in the $N00B window first. Anyone posting one before that is not us.</p>`],
     ];
     drawTopics(0);
   }
