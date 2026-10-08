@@ -352,6 +352,21 @@ async function sweep(mint) {
 
 /* ---------------- routes ---------------- */
 const R = {};
+R['GET probe'] = async ({ q }) => {
+  // node health: which public nodes answer the reads this site needs (no keys, no user data)
+  const w = addr(q.wallet || '39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg', 'wallet');
+  const out = {};
+  for (const u of RPCS) {
+    const host = u === RPC_URL ? 'private' : new URL(u).host, o = {};
+    for (const [m, p] of [['getSignaturesForAddress', [w, { limit: 1000 }]], ['getTokenLargestAccounts', ['DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263']], ['getSlot', []]]) {
+      const t = Date.now();
+      try { const r = await rpc(m, p, { only: [u], once: true, ms: 8000 }); o[m] = (Array.isArray(r) ? 'arr ' + r.length : r && r.value ? 'val ' + (Array.isArray(r.value) ? r.value.length : 'obj') : String(r)) + ' ' + (Date.now() - t) + 'ms'; }
+      catch (e) { o[m] = 'ERR ' + String(e.extra && e.extra.why || e.message).slice(0, 70); }
+    }
+    out[host] = o;
+  }
+  return out;
+};
 R['GET config'] = async () => ({ ca: CA || null, x: XH || null, minPct: MIN_PCT, kick: KICK, home: CA || null, rank: RPC_URL ? 'full' : 'top20' });
 
 R['GET nonce'] = async ({ q, req }) => {
